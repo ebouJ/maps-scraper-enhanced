@@ -1,0 +1,39 @@
+# Dockerfile with Playwright pre-installed
+FROM debian:stable-slim
+
+# Install system dependencies including Playwright requirements
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    wget \
+    gnupg \
+    libnss3 \
+    libatk-bridge2.0-0 \
+    libdrm2 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libgbm1 \
+    libxss1 \
+    libasound2 \
+    libatspi2.0-0 \
+    libgtk-3-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the pre-built binary
+COPY maps-scraper /usr/bin/maps-scraper
+RUN chmod +x /usr/bin/maps-scraper
+
+# Create data directory and cache directory for playwright
+RUN mkdir -p /app/webdata /app/cache
+
+# Pre-install Playwright by running a dummy command that will trigger the download
+# This ensures Playwright is installed during build time, not runtime
+RUN echo "test query" > /tmp/test.txt && \
+    timeout 60s maps-scraper -input /tmp/test.txt -results /dev/null -exit-on-inactivity 10s || true && \
+    rm -f /tmp/test.txt
+
+EXPOSE 8080
+
+ENTRYPOINT ["maps-scraper"]

@@ -19,7 +19,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o /usr/bin/google-maps-scraper
+RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o /usr/bin/maps-scraper
 
 # Final stage
 FROM debian:bullseye-slim
@@ -57,6 +57,6 @@ COPY --from=playwright-deps /root/.cache/ms-playwright-go /opt/ms-playwright-go
 RUN chmod -R 755 /opt/browsers \
     && chmod -R 755 /opt/ms-playwright-go
 
-COPY --from=builder /usr/bin/google-maps-scraper /usr/bin/
+COPY --from=builder /usr/bin/maps-scraper /usr/bin/
 
-ENTRYPOINT ["google-maps-scraper"]
+ENTRYPOINT ["maps-scraper"]
