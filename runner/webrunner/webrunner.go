@@ -20,6 +20,7 @@ import (
 	"github.com/gosom/google-maps-scraper/web/sqlite"
 	"github.com/gosom/scrapemate"
 	"github.com/gosom/scrapemate/adapters/writers/csvwriter"
+	"github.com/gosom/scrapemate/adapters/writers/jsonwriter"
 	"github.com/gosom/scrapemate/scrapemateapp"
 	"golang.org/x/sync/errgroup"
 )
@@ -288,7 +289,21 @@ func (w *webrunner) setupMate(_ context.Context, writer io.Writer, job *web.Job)
 
 	csvWriter := csvwriter.NewCsvWriter(csv.NewWriter(writer))
 
-	writers := []scrapemate.ResultWriter{csvWriter}
+	// Create JSON file alongside CSV for native JSON support
+	jsonPath := filepath.Join(w.cfg.DataFolder, job.ID+".json")
+	
+	var writers []scrapemate.ResultWriter
+	writers = append(writers, csvWriter)
+	
+	jsonFile, err := os.Create(jsonPath)
+	if err != nil {
+		log.Printf("failed to create JSON file: %v", err)
+		// Continue with CSV only if JSON fails
+	} else {
+		// Don't defer close - let the JSON writer handle file lifecycle
+		jsonWriter := jsonwriter.NewJSONWriter(jsonFile)
+		writers = append(writers, jsonWriter)
+	}
 
 	matecfg, err := scrapemateapp.NewConfig(
 		writers,

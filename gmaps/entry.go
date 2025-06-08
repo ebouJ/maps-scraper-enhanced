@@ -1,6 +1,7 @@
 package gmaps
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"iter"
@@ -9,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"bytes"
 )
 
 type Image struct {
@@ -624,8 +626,24 @@ func stringify(v any) string {
 		return ""
 	default:
 		d, _ := json.Marshal(v)
-		return string(d)
+		// Use proper CSV escaping for complex JSON data
+		return csvEscape(string(d))
 	}
+}
+
+// csvEscape properly escapes a string for CSV output
+func csvEscape(s string) string {
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
+	writer.Write([]string{s})
+	writer.Flush()
+	
+	// Get the result and remove the trailing newline
+	result := buf.String()
+	if len(result) > 0 && result[len(result)-1] == '\n' {
+		result = result[:len(result)-1]
+	}
+	return result
 }
 
 func decodeURL(url string) (string, error) {
