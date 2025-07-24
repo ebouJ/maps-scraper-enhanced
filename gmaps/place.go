@@ -8,10 +8,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gosom/google-maps-scraper/exiter"
 	"github.com/gosom/scrapemate"
 	"github.com/playwright-community/playwright-go"
-
-	"github.com/gosom/google-maps-scraper/exiter"
 )
 
 type PlaceJobOptions func(*PlaceJob)
@@ -112,6 +111,7 @@ func (j *PlaceJob) BrowserActions(ctx context.Context, page playwright.Page) scr
 	pageResponse, err := page.Goto(j.GetURL(), playwright.PageGotoOptions{
 		WaitUntil: playwright.WaitUntilStateDomcontentloaded,
 	})
+
 	if err != nil {
 		resp.Error = err
 
@@ -186,25 +186,8 @@ func (j *PlaceJob) extractJSON(page playwright.Page) ([]byte, error) {
 		return nil, err
 	}
 
-	var raw string
-	switch v := rawI.(type) {
-	case string:
-		raw = v
-	case nil:
-		// Try alternative extraction methods
-		return j.extractJSONFallback(page)
-	default:
-		// Log the actual type for debugging
-		fmt.Printf("DEBUG: APP_INITIALIZATION_STATE[3][6] returned type %T, value: %v\n", rawI, rawI)
-		
-		// Try to convert to string anyway
-		raw = fmt.Sprintf("%v", rawI)
-		if raw == "" || raw == "<nil>" {
-			return j.extractJSONFallback(page)
-		}
-	}
-
-	if raw == "" {
+	raw, ok := rawI.(string)
+	if !ok {
 		return nil, fmt.Errorf("could not convert to string")
 	}
 
@@ -213,33 +196,6 @@ func (j *PlaceJob) extractJSON(page playwright.Page) ([]byte, error) {
 	raw = strings.TrimSpace(strings.TrimPrefix(raw, prefix))
 
 	return []byte(raw), nil
-}
-
-// extractJSONFallback tries alternative methods to extract data
-func (j *PlaceJob) extractJSONFallback(page playwright.Page) ([]byte, error) {
-	// Try alternative JavaScript paths
-	alternatives := []string{
-		`window.APP_INITIALIZATION_STATE && window.APP_INITIALIZATION_STATE[3] && window.APP_INITIALIZATION_STATE[3][6]`,
-		`window.APP_INITIALIZATION_STATE && window.APP_INITIALIZATION_STATE[2] && window.APP_INITIALIZATION_STATE[2][6]`,
-		`window.APP_INITIALIZATION_STATE && window.APP_INITIALIZATION_STATE[4] && window.APP_INITIALIZATION_STATE[4][6]`,
-	}
-	
-	for _, altJS := range alternatives {
-		rawI, err := page.Evaluate(altJS)
-		if err != nil {
-			continue
-		}
-		
-		if rawStr, ok := rawI.(string); ok && rawStr != "" {
-			const prefix = `)]}'`
-			rawStr = strings.TrimSpace(strings.TrimPrefix(rawStr, prefix))
-			return []byte(rawStr), nil
-		}
-	}
-	
-	// If all else fails, return error but with better logging
-	fmt.Printf("DEBUG: All fallback methods failed for URL: %s\n", j.URL)
-	return nil, fmt.Errorf("all extraction methods failed")
 }
 
 func (j *PlaceJob) getReviewCount(data []byte) int {
@@ -264,18 +220,7 @@ func ctxWait(ctx context.Context, dur time.Duration) {
 
 const js = `
 function parse() {
-	const appState = window.APP_INITIALIZATION_STATE[3];
-	if (!appState) {
-		return null;
-	}
-
-	for (let i = 65; i <= 90; i++) {
-		const key = String.fromCharCode(i) + "f";
-		if (appState[key] && appState[key][6]) {
-		return appState[key][6];
-		}
-	}
-
-	return null;
+  const inputString = window.APP_INITIALIZATION_STATE[3][6]
+  return inputString
 }
 `

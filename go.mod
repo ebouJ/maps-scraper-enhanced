@@ -1,6 +1,6 @@
 module github.com/gosom/google-maps-scraper
 
-go 1.24.4
+go 1.24.3
 
 require (
 	github.com/PuerkitoBio/goquery v1.10.3
@@ -96,7 +96,6 @@ require (
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/fzipp/gocyclo v0.6.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
-	github.com/getsentry/sentry-go v0.34.1 // indirect
 	github.com/ghostiam/protogetter v0.3.9 // indirect
 	github.com/go-critic/go-critic v0.12.0 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.4 // indirect
