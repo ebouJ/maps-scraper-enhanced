@@ -1,0 +1,76 @@
+--- a/gmaps/place.go
++++ b/gmaps/place.go
+@@ -186,8 +186,22 @@ func (j *PlaceJob) extractJSON(page playwright.Page) ([]byte, error) {
+ 		return nil, err
+ 	}
+ 
+-	raw, ok := rawI.(string)
+-	if !ok {
++	var raw string
++	switch v := rawI.(type) {
++	case string:
++		raw = v
++	case nil:
++		// Try alternative extraction methods
++		return j.extractJSONFallback(page)
++	default:
++		// Log the actual type for debugging
++		fmt.Printf("DEBUG: APP_INITIALIZATION_STATE[3][6] returned type %T, value: %v\n", rawI, rawI)
++		
++		// Try to convert to string anyway
++		raw = fmt.Sprintf("%v", rawI)
++		if raw == "" || raw == "<nil>" {
++			return j.extractJSONFallback(page)
++		}
++	}
++
++	if raw == "" {
+ 		return nil, fmt.Errorf("could not convert to string")
+ 	}
+ 
+@@ -197,6 +211,46 @@ func (j *PlaceJob) extractJSON(page playwright.Page) ([]byte, error) {
+ 	return []byte(raw), nil
+ }
+ 
++// extractJSONFallback tries alternative methods to extract data
++func (j *PlaceJob) extractJSONFallback(page playwright.Page) ([]byte, error) {
++	// Try alternative JavaScript paths
++	alternatives := []string{
++		`window.APP_INITIALIZATION_STATE && window.APP_INITIALIZATION_STATE[3] && window.APP_INITIALIZATION_STATE[3][6]`,
++		`window.APP_INITIALIZATION_STATE && window.APP_INITIALIZATION_STATE[2] && window.APP_INITIALIZATION_STATE[2][6]`,
++		`window.APP_INITIALIZATION_STATE && window.APP_INITIALIZATION_STATE[4] && window.APP_INITIALIZATION_STATE[4][6]`,
++		`document.getElementById('mapDiv') && document.getElementById('mapDiv').getAttribute('data-value')`,
++	}
++	
++	for _, altJS := range alternatives {
++		rawI, err := page.Evaluate(altJS)
++		if err != nil {
++			continue
++		}
++		
++		if rawStr, ok := rawI.(string); ok && rawStr != "" {
++			const prefix = `)]}'`
++			rawStr = strings.TrimSpace(strings.TrimPrefix(rawStr, prefix))
++			return []byte(rawStr), nil
++		}
++	}
++	
++	// If all else fails, try to extract basic information from page content
++	return j.extractBasicInfo(page)
++}
++
++// extractBasicInfo extracts basic business information from page elements
++func (j *PlaceJob) extractBasicInfo(page playwright.Page) ([]byte, error) {
++	// This is a simplified fallback that extracts basic info
++	// without relying on APP_INITIALIZATION_STATE
++	
++	// For now, return an error to maintain existing behavior
++	// but log that we're in fallback mode
++	fmt.Printf("DEBUG: Using fallback extraction for URL: %s\n", j.URL)
++	
++	return nil, fmt.Errorf("fallback extraction not implemented yet")
++}
++
+ func (j *PlaceJob) getReviewCount(data []byte) int {
+ 	tmpEntry, err := EntryFromJSON(data, true)
+ 	if err != nil {
